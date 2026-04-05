@@ -1,20 +1,57 @@
-backend/scanner.db
-# Python
-venv/
+# =========================
+# 🔹 Python (Backend)
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 
-# Env
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Environment variables
 .env
+.env.*
 
 # Database
 *.db
+*.sqlite3
 
 # Logs
 *.log
 
-# Node
+# =========================
+# 🔹 React / Frontend
+# =========================
 node_modules/
+dist/
+build/
+.vite/
 
-# OS
+# Vite cache
+node_modules/.vite
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# 🔹 OS / System
+# =========================
 .DS_Store
+Thumbs.db
+
+# =========================
+# 🔹 IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# 🔹 Misc
+# =========================
+uploads/
+temp/
