@@ -106,10 +106,10 @@ export default function ProfileSetup() {
   if(!db) return <div>Loading...</div>;
 
   const tabs = [
-    { id: 'allergens', label: '🛡️ Allergens' },
-    { id: 'diets', label: '🍴 Diets' },
-    { id: 'health', label: '🤍 Health' },
-    { id: 'custom', label: '✨ Custom' }
+    { id: 'allergens', label: ' Allergens' },
+    { id: 'diets', label: ' Diets' },
+    { id: 'health', label: ' Health' },
+    { id: 'custom', label: ' Custom' }
   ];
 
   return (
