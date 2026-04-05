@@ -32,3 +32,7 @@ class CustomAllergen(Base):
     allergen_name = Column(String)
     keywords = Column(String)
     severity = Column(String)
+class ScanCache(Base):
+    __tablename__ = "scan_cache"
+    ingredients_hash = Column(String, primary_key=True, index=True)
+    result_json = Column(String)

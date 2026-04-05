@@ -8,6 +8,62 @@ file_path = os.path.join(BASE_DIR, "allergens.json")
 with open(file_path, "r") as f:
     ALLERGEN_DB = json.load(f)
 
+# Map common UI labels to keys in allergens.json
+ALLERGEN_KEY_ALIASES = {
+    "peanut": "peanuts",
+    "peanuts": "peanuts",
+    "dairy": "dairy",
+    "dairy / milk": "dairy",
+    "gluten": "gluten",
+    "gluten / wheat": "gluten",
+    "soy": "soy",
+    "nuts": "tree_nuts",
+    "tree nuts": "tree_nuts",
+    "tree_nuts": "tree_nuts",
+    "egg": "eggs",
+    "eggs": "eggs",
+    "fish": "fish",
+    "shellfish": "shellfish",
+    "oats": "oats",
+    "corn": "corn",
+    "corn / maize": "corn",
+    "rice": "rice",
+    "beef": "beef",
+    "beef / red meat": "beef",
+    "pork": "pork",
+    "mustard": "mustard",
+    "celery": "celery",
+    "lupin": "lupin",
+    "sesame": "sesame",
+    "sulfites": "sulfites",
+    "sulfites / so2": "sulfites",
+}
+
+DIET_KEY_ALIASES = {
+    "vegan": "vegan",
+    "vegetarian": "vegetarian",
+    "keto": "keto",
+    "paleo": "paleo",
+    "halal": "halal",
+}
+
+
+def _normalize_allergen_key(ua: str) -> str:
+    raw = ua.strip()
+    kl = raw.lower()
+    if kl in ALLERGEN_KEY_ALIASES:
+        return ALLERGEN_KEY_ALIASES[kl]
+    k_us = kl.replace(" ", "_")
+    if k_us in ALLERGEN_KEY_ALIASES:
+        return ALLERGEN_KEY_ALIASES[k_us]
+    return ALLERGEN_KEY_ALIASES.get(kl.replace("_", " "), k_us)
+
+
+def _normalize_diet_key(ud: str) -> str:
+    k = ud.strip().lower().replace(" ", "_")
+    return DIET_KEY_ALIASES.get(k, k)
+
+
 def parse_ingredients(text: str) -> list[str]:
     text = text.replace('\n', ' ')
     match = re.search(r'ingredients:?\s*(.*)', text, re.IGNORECASE)
@@ -50,8 +106,9 @@ def analyze_ingredients(ingredients: list[str], user_allergens: list[str], user_
 
     # Check DB allergens
     for ua in user_allergens:
-        if ua in ALLERGEN_DB["allergens"]:
-            db_entry = ALLERGEN_DB["allergens"][ua]
+        key = _normalize_allergen_key(ua)
+        if key in ALLERGEN_DB["allergens"]:
+            db_entry = ALLERGEN_DB["allergens"][key]
             for kw in db_entry["keywords"]:
                 if any(kw.lower() in ing.lower() for ing in ingredients):
                     allergens_found.append({**db_entry, "matched_keyword": kw})
@@ -82,13 +139,15 @@ def analyze_ingredients(ingredients: list[str], user_allergens: list[str], user_
                     
     # Check Diets
     for ud in user_diets:
-        if ud in ALLERGEN_DB["diet_conflicts"]:
-            db_entry = ALLERGEN_DB["diet_conflicts"][ud]
-            for kw in db_entry["keywords"]:
-                if any(kw.lower() in ing.lower() for ing in ingredients):
-                    diet_conflicts.append({**db_entry, "matched_keyword": kw})
-                    score -= 20
-                    break
+        key = _normalize_diet_key(ud)
+        if key not in ALLERGEN_DB["diet_conflicts"]:
+            continue
+        db_entry = ALLERGEN_DB["diet_conflicts"][key]
+        for kw in db_entry["keywords"]:
+            if any(kw.lower() in ing.lower() for ing in ingredients):
+                diet_conflicts.append({**db_entry, "matched_keyword": kw})
+                score -= 20
+                break
                     
     return {
         "score": max(0, score),

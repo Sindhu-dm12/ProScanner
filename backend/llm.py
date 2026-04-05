@@ -1,20 +1,81 @@
-from google import genai
 import json
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
-import PIL.Image
-import io
+from google import genai
 
-load_dotenv()
+# Load repo root .env then backend/.env (backend wins for overrides)
+_BACKEND_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _BACKEND_DIR.parent
+load_dotenv(_REPO_ROOT / ".env")
+load_dotenv(_BACKEND_DIR / ".env", override=True)
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "").strip()
+
+_client = None
 
 
-# ✅ TEXT → ALLERGEN EXTRACTION
+def get_client():
+    global _client
+    key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
+    if not key:
+        return None
+    if _client is None:
+        _client = genai.Client(api_key=key)
+    return _client
+
+
+def _models_to_try() -> list[str]:
+    if GEMINI_MODEL:
+        return [GEMINI_MODEL]
+    return [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+    ]
+
+
+def _response_text(response) -> str:
+    if response is None:
+        return ""
+    try:
+        t = response.text
+        if t and str(t).strip():
+            return str(t).strip()
+    except Exception:
+        pass
+    try:
+        cands = getattr(response, "candidates", None) or []
+        if not cands:
+            return ""
+        content = cands[0].content
+        if not content or not content.parts:
+            return ""
+        chunks = []
+        for p in content.parts:
+            if getattr(p, "text", None):
+                chunks.append(p.text)
+        return "".join(chunks).strip()
+    except Exception:
+        return ""
+
+
 async def extract_allergen(description: str):
+    client = get_client()
+    if not client:
+        words = description.lower().split()
+        name = " ".join(words[:2]).capitalize() if words else "Custom Allergen"
+        return {
+            "allergen_name": name,
+            "keywords": words[:3],
+            "severity": "high",
+            "symptoms": "User defined",
+        }
+
     prompt = f"""Extract allergen info from:
     "{description}"
-    
+
     Return JSON:
     {{
       "allergen_name": "",
@@ -24,81 +85,76 @@ async def extract_allergen(description: str):
     }}
     """
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=prompt
-        )
+    for model in _models_to_try():
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+            )
+            text = _response_text(response).replace("```json", "").replace("```", "")
+            if text:
+                return json.loads(text)
+        except Exception as e:
+            print(f"extract_allergen ({model}):", e)
 
-        text = response.text.strip().replace("```json", "").replace("```", "")
-        return json.loads(text)
-
-    except Exception as e:
-        print("Fallback triggered:", e)
-
-        words = description.lower().split()
-        name = " ".join(words[:2]).capitalize() if words else "Custom Allergen"
-
-        return {
-            "allergen_name": name,
-            "keywords": words[:3],
-            "severity": "high",
-            "symptoms": "User defined"
-        }
-
-
-# ✅ IMAGE → INGREDIENTS
-async def extract_from_image(image_bytes: bytes):
-    try:
-        image = PIL.Image.open(io.BytesIO(image_bytes))
-
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=[
-                "Extract ingredients + nutrition as JSON",
-                image
-            ]
-        )
-
-        text = response.text.strip().replace("```json", "").replace("```", "")
-        data = json.loads(text)
-
-        return {
-            "ingredients": data.get("ingredients", []),
-            "nutrition_facts": data.get("nutrition_facts", {}),
-            "extraction_confidence": data.get("extraction_confidence", 85)
-        }
-
-    except Exception as e:
-        print("Image error:", e)
-        return {"ingredients": [], "nutrition_facts": {}, "extraction_confidence": 0}
+    words = description.lower().split()
+    name = " ".join(words[:2]).capitalize() if words else "Custom Allergen"
+    return {
+        "allergen_name": name,
+        "keywords": words[:3],
+        "severity": "high",
+        "symptoms": "User defined",
+    }
 
 
-# ✅ SUMMARY
 async def generate_summary(
     ingredients,
     allergens_found,
     health_concerns,
     diet_conflicts,
     score,
-    user_profile
+    user_profile,
+    product_name: str = "",
+    override: bool = True,
 ):
-    prompt = f"""
-    Ingredients: {ingredients}
-    Score: {score}
-    Allergens: {allergens_found}
-    Health: {health_concerns}
-
-    Give short summary under 80 words.
-    """
-
-    try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=prompt
+    client = get_client()
+    if not client:
+        return (
+            "Add GEMINI_API_KEY or GOOGLE_API_KEY to backend/.env or the project root .env file. "
+            "Restart the server after saving. Heuristic scores and flags still work without AI."
         )
-        return response.text.strip()
 
-    except Exception as e:
-        print("Summary error:", e)
-        return "Basic analysis complete. Review ingredients manually."
+    prompt = f"""You are a concise nutrition assistant for a food label scanner.
+
+Product: {product_name or "Unknown"}
+Parsed ingredients (lowercase tokens): {ingredients}
+Safety score (0-100, higher is better): {score}
+User allergens to watch: {user_profile.get("allergens", [])}
+User diets: {user_profile.get("diets", [])}
+
+Flagged allergens (from rules): {allergens_found}
+Health / additive concerns: {health_concerns}
+Diet conflicts: {diet_conflicts}
+
+Write 2-4 short sentences: overall verdict, key risks for THIS user if any, and one practical tip. Under 100 words. Plain text only, no markdown."""
+
+    last_error = None
+    for model in _models_to_try():
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+            )
+            text = _response_text(response)
+            if text:
+                return text
+            last_error = "empty response"
+        except Exception as e:
+            last_error = str(e)
+            print(f"generate_summary ({model}):", e)
+
+    return (
+        f"AI summary unavailable ({last_error or 'unknown'}). "
+        "Check your API key and model access in Google AI Studio. "
+        "Scores and ingredient flags above are still valid."
+    )

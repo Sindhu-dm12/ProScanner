@@ -4,8 +4,9 @@ python-multipart
 pyjwt
 bcrypt
 passlib
-google-generativeai
+google-genai
 Pillow
+pytesseract
 sqlalchemy
 pydantic
 python-dotenv

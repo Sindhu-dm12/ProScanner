@@ -1,194 +1,430 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { API_URL } from '../config';
-import { Camera, Upload, Edit3 } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Camera,
+  Upload,
+  Type,
+  X,
+  CheckCircle,
+  AlertTriangle,
+  Info,
+  ArrowRight,
+  Image as ImageIcon,
+  GitCompare,
+} from 'lucide-react';
+import { loadHealthProfile } from '../App';
+import { compressImageFile } from '../utils/imageCompress';
+import { appendScanHistory } from '../utils/scanHistory';
 
-export default function Scan() {
-  const [file, setFile] = useState(null);
-  const [mode, setMode] = useState('upload'); // 'upload', 'text', 'camera'
-  const [text, setText] = useState('');
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const healthDotClass = (color) => {
+  const c = (color || '').toLowerCase();
+  if (c === 'orange') return 'bg-orange-400';
+  if (c === 'red') return 'bg-red-500';
+  if (c === 'yellow') return 'bg-yellow-400';
+  if (c === 'green') return 'bg-primary';
+  if (c === 'blue') return 'bg-blue-400';
+  if (c === 'purple') return 'bg-violet-500';
+  if (c === 'brown') return 'bg-amber-800';
+  return 'bg-primary';
+};
+
+function scoreStroke(score) {
+  if (score >= 80) return '#8a9a7e';
+  if (score >= 50) return '#c68b77';
+  return '#dc2626';
+}
+
+const ScoreRing = ({ score }) => {
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  return (
+    <div className="score-container">
+      <svg className="score-svg" width="160" height="160">
+        <circle className="score-circle" cx="80" cy="80" r={radius} />
+        <circle
+          className="score-progress"
+          cx="80"
+          cy="80"
+          r={radius}
+          style={{
+            strokeDasharray: circumference,
+            strokeDashoffset: offset,
+            stroke: scoreStroke(score),
+          }}
+        />
+      </svg>
+      <div className="flex flex-col items-center">
+        <span className="text-4xl font-bold text-text">{score}</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-muted">Safety</span>
+      </div>
+    </div>
+  );
+};
+
+function buildApiProfile() {
+  const p = loadHealthProfile() || {};
+  return {
+    allergens: p.allergens || [],
+    diets: p.diets || [],
+    avoid_flags: p.avoid_flags || [],
+    custom_terms: p.custom_terms || [],
+  };
+}
+
+const Scan = () => {
+  const [inputMethod, setInputMethod] = useState('upload');
   const [productName, setProductName] = useState('');
+  const [ingredients, setIngredients] = useState('');
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareA, setCompareA] = useState(null);
+  const [comparePair, setComparePair] = useState(null);
+
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const galleryInputRef = useRef(null);
+  const nativeCameraInputRef = useRef(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraOpen(false);
+  }, []);
 
   useEffect(() => {
-    if (mode === 'camera') {
-      startCamera();
-    } else {
-      stopCamera();
+    if (!file) {
+      setPreviewUrl(null);
+      return;
     }
-    return () => stopCamera();
-  }, [mode]);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
-    } catch (err) {
-      alert("Camera access denied or unavailable.");
-      setMode('upload');
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cameraOpen) return;
+    const id = requestAnimationFrame(() => {
+      const el = videoRef.current;
+      const stream = streamRef.current;
+      if (el && stream) {
+        el.srcObject = stream;
+        el.play().catch(() => {});
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [cameraOpen]);
+
+  const openLiveCamera = async () => {
+    setError('');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      nativeCameraInputRef.current?.click();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setCameraOpen(true);
+    } catch {
+      setError('Camera unavailable. Use Upload or allow camera access.');
+      nativeCameraInputRef.current?.click();
     }
   };
 
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
-      context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      
-      canvasRef.current.toBlob(async (blob) => {
-        const capturedFile = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
-        setFile(capturedFile);
-        stopCamera();
-        setMode('upload');
-        
-        // Auto-upload instantly for immediate UX
-        setLoading(true);
-        try {
-          const formData = new FormData();
-          formData.append('file', capturedFile);
-          formData.append('product_name', productName || "Scanned Product");
-          
-          const res = await fetch(`${API_URL}/scan/image`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: formData
-          });
-          if (!res.ok) throw new Error("Scan failed with status: " + res.status);
-          setResult(await res.json());
-        } catch (err) {
-          alert(err.message);
+  const captureFromVideo = () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return;
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (!w || !h) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, w, h);
+    canvas.toBlob(
+      async (blob) => {
+        if (blob) {
+          const raw = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setFile(await compressImageFile(raw));
+          stopCamera();
         }
-        setLoading(false);
-      }, 'image/jpeg');
-    }
+      },
+      'image/jpeg',
+      0.88
+    );
   };
 
-  const handleScan = async () => {
+  const onGalleryChange = async (e) => {
+    const f = e.target.files?.[0];
+    if (f) setFile(await compressImageFile(f));
+    e.target.value = '';
+  };
+
+  const finalizeScanResult = (data) => {
+    appendScanHistory({
+      product_name: data.product_name,
+      score: data.score,
+      allergens_found: data.allergens_found,
+      summary: data.summary,
+      health_concerns: data.health_concerns,
+      diet_conflicts: data.diet_conflicts,
+      ingredients: data.ingredients,
+    });
+
+    if (compareMode) {
+      if (!compareA) {
+        setCompareA(data);
+        setResult(null);
+        setInfo('First product saved. Scan your second product, then run analysis again.');
+        setProductName('');
+        setIngredients('');
+        setFile(null);
+        return;
+      }
+      setComparePair({ a: compareA, b: data });
+      setCompareA(null);
+      setInfo('');
+      setResult(null);
+      return;
+    }
+    setResult(data);
+    setInfo('');
+  };
+
+  const handleScan = async (e) => {
+    e.preventDefault();
     setLoading(true);
+    setError('');
+    setInfo('');
+
+    const profile = buildApiProfile();
+
     try {
       let res;
-      if (mode === 'text') {
-        const formData = new FormData();
-        formData.append('text', text);
-        formData.append('product_name', productName || "Scanned Product");
-        res = await fetch(`${API_URL}/scan/text`, {
+      if (inputMethod === 'text') {
+        res = await fetch(`${API_URL}/api/scan/text`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: ingredients,
+            product_name: productName || 'Scanned product',
+            profile,
+          }),
         });
       } else {
+        if (!file) {
+          setError('Add an image first (upload or camera).');
+          setLoading(false);
+          return;
+        }
+        const toSend = await compressImageFile(file);
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('product_name', productName || "Scanned Product");
-        res = await fetch(`${API_URL}/scan/image`, {
+        formData.append('file', toSend);
+        formData.append('product_name', productName || 'Scanned product');
+        formData.append('profile_json', JSON.stringify(profile));
+        res = await fetch(`${API_URL}/api/scan/image`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-          body: formData
+          body: formData,
         });
       }
-      
-      if (!res.ok) throw new Error("Scan failed. Error Code " + res.status);
-      setResult(await res.json());
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const d = data.detail;
+        const detailMsg =
+          typeof d === 'string'
+            ? d
+            : Array.isArray(d)
+              ? d.map((x) => x.msg || JSON.stringify(x)).join('; ')
+              : data.message;
+        throw new Error(detailMsg || `Request failed (${res.status})`);
+      }
+      finalizeScanResult(data);
     } catch (err) {
-      alert(err.message);
+      setError(err.message || 'Scan failed. Is the backend running?');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  const resetCompare = () => {
+    setComparePair(null);
+    setCompareA(null);
+    setInfo('');
+  };
+
+  if (comparePair) {
+    const { a, b } = comparePair;
+    return (
+      <div className="animate-fade-in space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-text sm:text-3xl">Compare products</h1>
+            <p className="text-sm text-muted">Side-by-side safety scores</p>
+          </div>
+          <button
+            type="button"
+            onClick={resetCompare}
+            className="pure-btn-primary w-fit bg-text px-5 py-2.5 text-sm hover:opacity-90"
+          >
+            Done
+          </button>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          {[a, b].map((r, i) => (
+            <div key={i} className="glass-card flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold text-text">{r.product_name || `Product ${i + 1}`}</h2>
+                  <p className="text-sm text-muted">Score {r.score}</p>
+                </div>
+                <div
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white shadow-md ${
+                    r.score >= 80 ? 'bg-accent' : r.score >= 50 ? 'bg-sidebar-accent' : 'bg-red-500'
+                  }`}
+                >
+                  {r.score}
+                </div>
+              </div>
+              <p className="text-sm leading-relaxed text-text">{r.summary}</p>
+              {(r.allergens_found || []).length > 0 && (
+                <div className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+                  {(r.allergens_found || []).map((x) => x.label).join(' · ')}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (result) {
     return (
-      <div className="card">
-        <div className="card-header" style={{display: 'flex', justifyContent: 'space-between'}}>
-          <h2>Scan Results</h2>
-          <button onClick={() => setResult(null)} className="btn-secondary" style={{width: 'auto'}}>Scan Another</button>
-        </div>
-        
-        <div className="grid-cols-2 mt-4">
+      <div className="animate-fade-in space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="score-ring" style={{color: result.score > 85 ? 'var(--success)' : result.score > 60 ? 'var(--warning)' : 'var(--danger)'}}>
-              {result.score}
-            </div>
-            
-            <div className="card" style={{background: '#F9FAFB', marginTop: '1rem'}}>
-              <h3>AI Summary</h3>
-              <p className="mt-1">{result.summary}</p>
-            </div>
-
-            {result.nutrition_facts && Object.keys(result.nutrition_facts).length > 0 && (
-              <div className="card mt-2" style={{background: '#fff', border: '1px solid #E5E7EB'}}>
-                <h3>Nutrition Facts (Estimates)</h3>
-                <ul className="mt-2" style={{listStyle: 'none'}}>
-                  {Object.entries(result.nutrition_facts).map(([k, v]) => (
-                    <li key={k} style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F3F4F6', padding: '0.25rem 0'}}>
-                      <span style={{textTransform: 'capitalize'}}>{k.replace(/_/g, ' ')}</span>
-                      <strong>{v}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="card mt-2" style={{background: '#EFF6FF', border: '1px solid #DBEAFE'}}>
-               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                 <h3 style={{color: '#1E40AF'}}>Scan Accuracy</h3>
-                 <span style={{fontSize: '1.25rem', fontWeight: 800, color: '#1E40AF'}}>{result.accuracy}%</span>
-               </div>
-               <p className="text-sm mt-1" style={{color: '#1E40AF'}}>This represents the AI's confidence in correctly identifying ingredients from the image.</p>
-            </div>
+            <h1 className="font-display text-2xl font-bold text-text sm:text-3xl">
+              {result.product_name || 'Analyzed product'}
+            </h1>
+            <p className="mt-1 text-sm text-muted">Ingredient scan · {new Date().toLocaleDateString()}</p>
           </div>
-          
-          <div>
-            <h3>Findings</h3>
-            
-            <div className="mt-2">
-              {result.error && (
-                <div className="card mb-2" style={{borderLeft: '4px solid var(--danger)', background: '#FEF2F2'}}>
-                  <strong style={{color: 'var(--danger)'}}>⚠️ Analysis Issue</strong>
-                  <p className="mt-1 text-sm">{result.error}</p>
-                </div>
-              )}
-              {result.allergens_found.length > 0 && <h4 className="mt-2 mb-1" style={{color: 'var(--danger)'}}>🚨 Allergens Detected</h4>}
-              {result.allergens_found.map((a, i) => (
-                <div key={i} className="card mb-1" style={{borderLeft: '4px solid var(--danger)', padding: '1rem'}}>
-                  <strong>{a.label}</strong>
-                  <p className="text-muted mt-1" style={{fontSize: '0.875rem'}}>{a.description}</p>
-                </div>
-              ))}
-              
-              {result.diet_conflicts?.length > 0 && <h4 className="mt-2 mb-1" style={{color: 'var(--warning)'}}>⚠️ Diet Conflicts</h4>}
-              {result.diet_conflicts?.map((d, i) => (
-                <div key={i} className="card mb-1" style={{borderLeft: '4px solid var(--warning)', padding: '1rem'}}>
-                  <strong>{d.label}</strong>
-                </div>
-              ))}
-              
-              {result.health_concerns?.length > 0 && <h4 className="mt-2 mb-1" style={{color: 'var(--warning)'}}>🟡 Health Warning</h4>}
-              {result.health_concerns?.map((h, i) => (
-                <div key={i} className="card mb-1" style={{borderLeft: '4px solid var(--warning)', padding: '0.75rem'}}>
-                  <strong>{h.label}</strong>
-                  <p className="text-muted" style={{fontSize: '0.85rem'}}>{h.description} {h.global ? "(Global Warning)" : ""}</p>
-                </div>
-              ))}
+          <button
+            type="button"
+            onClick={() => setResult(null)}
+            className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text hover:bg-canvas"
+          >
+            <X className="mr-2 inline h-4 w-4" />
+            New scan
+          </button>
+        </div>
 
-              {result.score === 100 && !result.error && (
-                <div className="card mt-2" style={{borderLeft: '4px solid var(--success)', padding: '1rem'}}>
-                  <strong style={{color: 'var(--success)'}}>✅ Safe to consume</strong>
-                  <p className="text-muted mt-1" style={{fontSize: '0.875rem'}}>No configured allergens or major health flags detected.</p>
-                </div>
-              )}
+        <div className="glass-card flex flex-col items-center gap-8 md:flex-row md:items-center">
+          <ScoreRing score={result.score} />
+          <div className="flex-1 text-center md:text-left">
+            <h3 className="mb-2 flex items-center justify-center gap-2 text-lg font-semibold text-text md:justify-start">
+              <CheckCircle className="h-5 w-5 text-primary" />
+              AI summary
+            </h3>
+            <p className="text-base leading-relaxed text-text">{result.summary}</p>
+          </div>
+        </div>
+
+        <div className="glass-card">
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-text">
+            <Type className="h-5 w-5 text-primary" />
+            Parsed ingredients
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {(result.ingredients || []).map((ing, i) => (
+              <span
+                key={i}
+                className="rounded-full border border-border bg-canvas px-3 py-1.5 text-sm font-medium text-text"
+              >
+                {ing}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {(result.allergens_found || []).length > 0 && (
+            <div className="glass-card border-warn/30 bg-warn-soft/40">
+              <h3 className="mb-4 flex items-center gap-2 font-semibold text-warn">
+                <AlertTriangle className="h-5 w-5" />
+                Allergen alerts
+              </h3>
+              <ul className="space-y-3">
+                {(result.allergens_found || []).map((all, i) => (
+                  <li key={i} className="rounded-xl bg-surface p-4 text-sm">
+                    <div className="text-xs font-bold uppercase tracking-wide text-warn">
+                      {all.severity || 'alert'}
+                    </div>
+                    <div className="mt-1 font-semibold text-text">{all.label}</div>
+                    <p className="mt-1 text-muted">{all.description}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
+          )}
+
+          <div className="glass-card">
+            <h3 className="mb-4 flex items-center gap-2 font-semibold text-text">
+              <Info className="h-5 w-5 text-primary" />
+              Diet & health flags
+            </h3>
+            {(result.diet_conflicts || []).length > 0 ? (
+              <ul className="mb-4 space-y-2 text-sm">
+                {(result.diet_conflicts || []).map((d, i) => (
+                  <li key={i} className="rounded-lg bg-canvas px-3 py-2">
+                    <span className="font-medium text-text">{d.label}</span>
+                    {d.matched_keyword && (
+                      <span className="text-muted"> — {d.matched_keyword}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {(result.health_concerns || []).length > 0 ? (
+              <ul className="space-y-3 text-sm">
+                {(result.health_concerns || []).map((con, i) => (
+                  <li key={i}>
+                    <div className="flex items-center justify-between gap-2 font-medium text-text">
+                      {con.label}
+                      <span className={`h-3 w-3 shrink-0 rounded-full ${healthDotClass(con.color)}`} />
+                    </div>
+                    <p className="mt-1 text-muted">{con.description}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">No extra health flags from the ruleset.</p>
+            )}
           </div>
         </div>
       </div>
@@ -196,57 +432,249 @@ export default function Scan() {
   }
 
   return (
-    <div>
-      <h1 className="mb-2">Scan Product</h1>
-      <p className="text-muted mb-4">Upload, capture, or paste ingredients to analyze</p>
-      
-      <div className="mb-4">
-         <label style={{display: 'block', fontWeight: 600, marginBottom: '0.5rem'}}>Product Name (optional)</label>
-         <input type="text" placeholder="e.g. Oreo Cookies, Heinz Ketchup..." value={productName} onChange={e=>setProductName(e.target.value)} />
-         <p className="text-muted text-sm mt-1">Adding a name makes it easier to find and compare later</p>
-      </div>
+    <div className="animate-fade-in space-y-8 pb-12">
+      <header className="border-b border-border pb-8">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.25em] text-primary">Analyze</p>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-text sm:text-4xl">Scan product</h1>
+        <p className="mt-3 max-w-md text-muted">Upload, capture, or paste ingredients—we decode the label.</p>
+      </header>
 
-      <div className="flex-center mb-4" style={{justifyContent: 'flex-start', gap: '1rem'}}>
-        <button className={`btn-${mode === 'upload' ? 'primary' : 'secondary'}`} style={{width: 'auto', display:'flex', gap:'0.5rem', alignItems:'center'}} onClick={() => setMode('upload')}><Upload size={18}/> Upload Image</button>
-        <button className={`btn-${mode === 'camera' ? 'primary' : 'secondary'}`} style={{width: 'auto', display:'flex', gap:'0.5rem', alignItems:'center'}} onClick={() => setMode('camera')}><Camera size={18}/> Camera</button>
-        <button className={`btn-${mode === 'text' ? 'primary' : 'secondary'}`} style={{width: 'auto', display:'flex', gap:'0.5rem', alignItems:'center'}} onClick={() => setMode('text')}><Edit3 size={18}/> Paste Text</button>
-      </div>
-      
-      {mode === 'upload' && (
-        <label className="scan-box" style={{display: 'block', cursor:'pointer'}}>
-          <input type="file" onChange={e => setFile(e.target.files[0])} style={{display:'none'}} accept="image/*" />
-          <Upload size={48} color="var(--text-muted)" style={{margin: '0 auto', marginBottom: '1rem'}}/>
-          <h3>{file ? file.name : "Click to upload an image"}</h3>
-          <p className="text-muted mt-1">JPG, PNG, or WEBP</p>
-        </label>
-      )}
+      <form onSubmit={handleScan} className="space-y-6">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-text">Product name (optional)</label>
+          <input
+            type="text"
+            className="pure-input"
+            placeholder="e.g. Oreo Cookies, Heinz Ketchup…"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+          />
+        </div>
 
-      {mode === 'camera' && (
-        <div style={{textAlign: 'center'}}>
-          <video ref={videoRef} autoPlay playsInline style={{width: '100%', maxWidth: '600px', borderRadius: 'var(--radius-lg)', border: '2px solid #E5E7EB'}} />
-          <canvas ref={canvasRef} style={{display: 'none'}} />
-          <br />
-          <button className="btn-primary mt-2" onClick={capturePhoto} style={{width: 'auto', padding: '0.75rem 2rem'}}>Snap Photo</button>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: 'upload', label: 'Upload', icon: Upload },
+            { id: 'camera', label: 'Camera', icon: Camera },
+            { id: 'text', label: 'Paste text', icon: Type },
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setInputMethod(id);
+                setError('');
+              }}
+              className={`flex flex-col items-center justify-center gap-2 rounded-2xl border py-4 text-sm font-semibold transition-all ${
+                inputMethod === id
+                  ? 'border-primary/35 bg-primary-soft text-primary shadow-[0_8px_24px_-12px_rgba(196,92,62,0.35)]'
+                  : 'border-border bg-surface text-muted hover:border-primary/25 hover:text-text hover:shadow-sm'
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/*"
+          className="hidden"
+          onChange={onGalleryChange}
+        />
+        <input
+          ref={nativeCameraInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/*"
+          capture="environment"
+          className="hidden"
+          onChange={onGalleryChange}
+        />
+
+        {inputMethod === 'text' && (
+          <div>
+            <label className="mb-2 block text-sm font-medium text-text">Ingredients</label>
+            <textarea
+              className="pure-input min-h-[200px] resize-y"
+              placeholder="Ingredients: water, sugar, palm oil…"
+              value={ingredients}
+              onChange={(e) => setIngredients(e.target.value)}
+              required
+            />
+          </div>
+        )}
+
+        {inputMethod === 'upload' && (
+          <div className="space-y-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => galleryInputRef.current?.click()}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') galleryInputRef.current?.click();
+              }}
+              className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-surface py-14 transition-colors hover:border-primary/40 hover:bg-primary-soft/30"
+            >
+              <ImageIcon className="h-12 w-12 text-muted" />
+              <span className="font-semibold text-text">Upload an image</span>
+              <span className="text-sm text-muted">JPG, PNG, or WEBP</span>
+              {previewUrl && (
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="mt-4 max-h-48 rounded-xl border border-border object-contain shadow-sm"
+                />
+              )}
+            </div>
+            {file && (
+              <button
+                type="button"
+                onClick={() => setFile(null)}
+                className="text-sm font-semibold text-danger hover:underline"
+              >
+                Remove image
+              </button>
+            )}
+          </div>
+        )}
+
+        {inputMethod === 'camera' && (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={openLiveCamera}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface py-4 font-semibold text-text hover:bg-canvas"
+              >
+                <Camera className="h-5 w-5 text-primary" />
+                Open camera
+              </button>
+              <button
+                type="button"
+                onClick={() => nativeCameraInputRef.current?.click()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface py-4 font-semibold text-text hover:bg-canvas sm:hidden"
+              >
+                Native camera
+              </button>
+            </div>
+            <div className="rounded-2xl border border-dashed border-border bg-surface py-12 text-center">
+              {previewUrl ? (
+                <>
+                  <img
+                    src={previewUrl}
+                    alt="Captured"
+                    className="mx-auto max-h-56 rounded-xl object-contain shadow-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFile(null)}
+                    className="mt-4 text-sm font-semibold text-danger hover:underline"
+                  >
+                    Retake
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-muted">Capture a clear photo of the ingredient list.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="pure-btn-primary flex w-full items-center justify-center gap-2 py-4 text-base font-semibold disabled:opacity-50"
+        >
+          {loading ? (
+            <>
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              Analyzing…
+            </>
+          ) : (
+            <>
+              Run analysis
+              <ArrowRight className="h-5 w-5" />
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setCompareMode((c) => !c);
+            setCompareA(null);
+            setInfo('');
+            setComparePair(null);
+          }}
+          className={`flex w-full items-center justify-center gap-2 rounded-2xl border py-3.5 text-sm font-semibold transition-all ${
+            compareMode
+              ? 'border-primary/40 bg-primary-soft text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]'
+              : 'border-dashed border-border bg-surface/80 text-muted hover:border-primary/30 hover:text-text'
+          }`}
+        >
+          <GitCompare className="h-4 w-4" />
+          {compareMode ? 'Compare mode on — scan two products' : 'Enable compare mode'}
+        </button>
+      </form>
+
+      {info && (
+        <div className="rounded-xl border border-primary/30 bg-primary-soft px-4 py-3 text-sm font-medium text-primary">
+          {info}
         </div>
       )}
-      
-      {mode === 'text' && (
-        <textarea 
-          style={{width: '100%', height: '200px', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #E5E7EB', outline: 'none', fontFamily: 'inherit'}}
-          placeholder="Paste ingredients text here..."
-          value={text}
-          onChange={e => setText(e.target.value)}
-        />
+
+      {error && (
+        <div className="flex animate-shake items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          {error}
+        </div>
       )}
-      
-      <button 
-        className="btn-primary mt-4" 
-        onClick={handleScan}
-        disabled={loading || (mode === 'upload' && !file) || (mode === 'text' && !text) || mode === 'camera'}
-        style={{opacity: loading ? 0.7 : 1}}
-      >
-        {loading ? 'Analyzing...' : 'Analyze Ingredients'}
-      </button>
+
+      {cameraOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Camera"
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-text shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 text-white">
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                <Camera className="h-5 w-5" />
+                Ingredient label
+              </span>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="rounded-lg p-2 hover:bg-white/10"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <video ref={videoRef} playsInline muted autoPlay className="aspect-[4/3] w-full bg-black object-cover" />
+            <div className="flex gap-2 p-3">
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="flex-1 rounded-xl bg-white/10 py-3 text-sm font-semibold text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={captureFromVideo}
+                className="pure-btn-primary flex-1 py-3 text-sm"
+              >
+                Capture
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default Scan;

@@ -71,6 +71,78 @@
       "description": "Allergy to crustacean shellfish and mollusks.",
       "health_risks": ["Anaphylaxis", "Swelling", "Respiratory distress"],
       "keywords": ["shrimp", "crab", "lobster", "crawfish", "prawns", "krill", "clam", "oyster", "scallop", "mussel", "squid", "octopus", "snail"]
+    },
+    "oats": {
+      "label": "Oats",
+      "color": "orange",
+      "severity": "medium",
+      "description": "Oat allergy or celiac cross-reactivity; some products are oat-free certified.",
+      "health_risks": ["Hives", "Digestive distress", "Cross-contact with gluten"],
+      "keywords": ["oat", "oats", "oatmeal", "oat flour", "avena", "oat bran", "oat milk"]
+    },
+    "corn": {
+      "label": "Corn / Maize",
+      "color": "yellow",
+      "severity": "medium",
+      "description": "Allergy or sensitivity to corn and corn derivatives.",
+      "health_risks": ["Hives", "Digestive distress", "Respiratory symptoms"],
+      "keywords": ["corn", "maize", "cornstarch", "corn starch", "corn syrup", "corn flour", "zein", "maltodextrin from corn", "popcorn", "hominy"]
+    },
+    "rice": {
+      "label": "Rice",
+      "color": "yellow",
+      "severity": "low",
+      "description": "Rice allergy is uncommon but can cause reactions in sensitive individuals.",
+      "health_risks": ["Hives", "Digestive distress"],
+      "keywords": ["rice", "rice flour", "rice starch", "rice bran", "rice syrup", "brown rice", "white rice", "rice wine"]
+    },
+    "beef": {
+      "label": "Beef / Red Meat",
+      "color": "red",
+      "severity": "medium",
+      "description": "Alpha-gal or red meat allergy; also relevant for dietary avoidance.",
+      "health_risks": ["Hives", "Anaphylaxis", "Delayed reactions"],
+      "keywords": ["beef", "steak", "ground beef", "veal", "bovine", "cow", "red meat", "lamb", "mutton", "goat"]
+    },
+    "pork": {
+      "label": "Pork",
+      "color": "orange",
+      "severity": "medium",
+      "description": "Pork allergy or avoidance (e.g. religious diet).",
+      "health_risks": ["Hives", "Digestive distress"],
+      "keywords": ["pork", "bacon", "ham", "lard", "prosciutto", "sausage", "chorizo", "gelatin from pork", "porcine"]
+    },
+    "mustard": {
+      "label": "Mustard",
+      "color": "yellow",
+      "severity": "medium",
+      "description": "Mustard seed allergy (common EU allergen).",
+      "health_risks": ["Anaphylaxis", "Hives"],
+      "keywords": ["mustard", "mustard seed", "mustard flour", "mustard oil", "sinapis"]
+    },
+    "celery": {
+      "label": "Celery",
+      "color": "green",
+      "severity": "medium",
+      "description": "Celery and celeriac allergy.",
+      "health_risks": ["Anaphylaxis", "Oral allergy syndrome"],
+      "keywords": ["celery", "celeriac", "celery salt", "celery seed", "celery powder", "apium"]
+    },
+    "lupin": {
+      "label": "Lupin",
+      "color": "yellow",
+      "severity": "high",
+      "description": "Legume related to peanuts; can trigger severe reactions.",
+      "health_risks": ["Anaphylaxis", "Cross-reactivity with peanut"],
+      "keywords": ["lupin", "lupine", "lupini", "lupin flour"]
+    },
+    "sulfites": {
+      "label": "Sulfites / SO2",
+      "color": "orange",
+      "severity": "medium",
+      "description": "Sulfiting agents can trigger asthma and reactions in sensitive people.",
+      "health_risks": ["Asthma", "Hives", "Anaphylaxis"],
+      "keywords": ["sulfite", "sulphite", "sulfur dioxide", "sodium bisulfite", "sodium metabisulfite", "potassium bisulfite", "e220", "e221", "e222", "e223", "e224", "e225", "e226", "e227", "e228"]
     }
   },
   "diet_conflicts": {
