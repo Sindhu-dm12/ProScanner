@@ -1,0 +1,148 @@
+{
+  "allergens": {
+    "dairy": {
+      "label": "Dairy / Milk",
+      "color": "blue",
+      "severity": "high",
+      "description": "Lactose or milk protein allergy.",
+      "health_risks": ["Anaphylaxis", "Digestive distress", "Hives"],
+      "keywords": ["milk", "cheese", "butter", "cream", "whey", "casein", "lactose", "ghee", "yogurt"]
+    },
+    "gluten": {
+      "label": "Gluten",
+      "color": "orange",
+      "severity": "high",
+      "description": "Protein found in wheat, barley, rye. Causes celiac disease and gluten sensitivity.",
+      "health_risks": ["Intestinal damage", "Bloating", "Fatigue"],
+      "keywords": ["wheat", "barley", "rye", "malt", "brewer's yeast", "durum", "semolina", "spelt", "farina"]
+    },
+    "peanuts": {
+      "label": "Peanuts",
+      "color": "red",
+      "severity": "high",
+      "description": "Severe allergic reaction to peanuts.",
+      "health_risks": ["Anaphylaxis", "Swelling", "Shortness of breath"],
+      "keywords": ["peanut", "arachic oil", "arachis", "beer nuts", "cacahuete", "goober", "ground nuts", "mandelonas", "mixed nuts", "monkey nuts", "nut pieces", "peanut butter", "peanut flour"]
+    },
+    "tree_nuts": {
+      "label": "Tree Nuts",
+      "color": "red",
+      "severity": "high",
+      "description": "Allergy to nuts that grow on trees (almonds, walnuts, pecans, etc.).",
+      "health_risks": ["Anaphylaxis", "Swelling", "Shortness of breath"],
+      "keywords": ["almond", "walnut", "pecan", "cashew", "pistachio", "hazelnut", "macadamia", "brazil nut", "pine nut", "chestnut", "hickory nut", "pignoli", "praline", "gianduja", "marzipan", "nougat", "nut paste", "nutella", "pest"]
+    },
+    "soy": {
+      "label": "Soy",
+      "color": "yellow",
+      "severity": "medium",
+      "description": "Allergy to soybeans and soy products.",
+      "health_risks": ["Hives", "Itching", "Digestive distress"],
+      "keywords": ["soy", "soya", "edamame", "miso", "natto", "shoyu", "tamari", "tempeh", "tofu", "textured vegetable protein", "tvp", "hydrolyzed soy protein"]
+    },
+    "eggs": {
+      "label": "Eggs",
+      "color": "yellow",
+      "severity": "medium",
+      "description": "Allergy to proteins found in eggs.",
+      "health_risks": ["Hives", "Digestive distress", "Nasal congestion"],
+      "keywords": ["egg", "albumen", "globulin", "livetin", "lysozyme", "mayonnaise", "meringue", "ovalbumin", "ovomucoid", "surimi", "vitellin"]
+    },
+    "sesame": {
+      "label": "Sesame",
+      "color": "yellow",
+      "severity": "medium",
+      "description": "Allergy to sesame seeds and oils.",
+      "health_risks": ["Anaphylaxis", "Hives", "Digestive distress"],
+      "keywords": ["sesame", "tahini", "gomasio", "halvah", "sesamol", "sesamum indicum", "benneseed"]
+    },
+    "fish": {
+      "label": "Fish",
+      "color": "blue",
+      "severity": "high",
+      "description": "Allergy to finned fish.",
+      "health_risks": ["Anaphylaxis", "Swelling", "Vomiting"],
+      "keywords": ["fish", "salmon", "tuna", "cod", "flounder", "halibut", "tilapia", "trout", "anchovy", "sardine", "pike", "pollock", "snapper", "swordfish", "mahi mahi"]
+    },
+    "shellfish": {
+      "label": "Shellfish",
+      "color": "red",
+      "severity": "high",
+      "description": "Allergy to crustacean shellfish and mollusks.",
+      "health_risks": ["Anaphylaxis", "Swelling", "Respiratory distress"],
+      "keywords": ["shrimp", "crab", "lobster", "crawfish", "prawns", "krill", "clam", "oyster", "scallop", "mussel", "squid", "octopus", "snail"]
+    }
+  },
+  "diet_conflicts": {
+    "vegan": {
+      "label": "Not Vegan",
+      "color": "green",
+      "keywords": ["meat", "milk", "cheese", "egg", "honey", "gelatin", "whey", "casein", "butter", "beef", "chicken", "pork", "fish", "shellfish", "carmine", "isinglass", "lanolin", "lactose"]
+    },
+    "vegetarian": {
+      "label": "Not Vegetarian",
+      "color": "green",
+      "keywords": ["meat", "beef", "chicken", "pork", "fish", "shellfish", "gelatin", "carmine", "isinglass", "rennet", "lard", "suet"]
+    },
+    "keto": {
+      "label": "Not Keto-Friendly",
+      "color": "purple",
+      "keywords": ["sugar", "corn syrup", "high fructose", "wheat", "rice", "potato", "starch", "honey", "maple syrup", "maltodextrin", "dextrose", "sucrose", "fructose", "agave", "tapioca"]
+    },
+    "paleo": {
+        "label": "Not Paleo-Friendly",
+        "color": "brown",
+        "keywords": ["sugar", "wheat", "corn", "rice", "oats", "barley", "dairy", "milk", "cheese", "butter", "soy", "bean", "peanut", "lentil", "artificial", "preservative"]
+    }
+  },
+  "health_flags": {
+    "high_sugar": {
+      "label": "High Sugar Content",
+      "color": "orange",
+      "severity": "medium",
+      "description": "Excess sugar linked to diabetes, obesity, heart disease.",
+      "health_risks": ["Type 2 diabetes", "Obesity", "Heart disease", "Tooth decay"],
+      "keywords": ["sugar", "corn syrup", "high fructose corn syrup", "glucose", "fructose", "sucrose", "dextrose", "maltose", "honey", "agave", "molasses", "cane sugar", "brown sugar", "powdered sugar", "confectioners sugar", "maple syrup", "rice syrup", "date syrup", "coconut sugar"]
+    },
+    "artificial_colors": {
+      "label": "Artificial Colors",
+      "color": "red",
+      "severity": "low",
+      "description": "Synthetic dyes linked to hyperactivity and allergies.",
+      "health_risks": ["Hyperactivity in children", "Allergic reactions"],
+      "keywords": ["red 40", "yellow 5", "yellow 6", "blue 1", "blue 2", "green 3", "artificial color", "color added", "fd&c"]
+    },
+    "artificial_sweeteners": {
+        "label": "Artificial Sweeteners",
+        "color": "yellow",
+        "severity": "low",
+        "description": "Synthetic sugar substitutes loosely linked to gut microbiome disruption.",
+        "health_risks": ["Gut microbiome disruption", "Headaches"],
+        "keywords": ["aspartame", "sucralose", "saccharin", "acesulfame potassium", "neotame", "advantame"]
+    },
+    "trans_fats": {
+        "label": "Trans Fats",
+        "color": "red",
+        "severity": "high",
+        "description": "Industrial fats that strongly increase cholesterol and heart disease risk.",
+        "health_risks": ["Heart disease", "Stroke", "Type 2 diabetes"],
+        "keywords": ["partially hydrogenated", "hydrogenated", "shortening"]
+    },
+    "msg": {
+        "label": "MSG (Monosodium Glutamate)",
+        "color": "yellow",
+        "severity": "low",
+        "description": "Flavor enhancer that may cause headaches or nausea in sensitive individuals.",
+        "health_risks": ["Headaches", "Nausea", "Sweating", "Flushing"],
+        "keywords": ["msg", "monosodium glutamate", "hydrolyzed protein", "autolyzed yeast", "yeast extract", "glutamic acid"]
+    },
+    "nitrates_nitrites": {
+        "label": "Nitrates / Nitrites",
+        "color": "orange",
+        "severity": "medium",
+        "description": "Preservatives commonly found in processed meats, linked to certain cancers.",
+        "health_risks": ["Increased cancer risk", "Thyroid issues"],
+        "keywords": ["sodium nitrate", "sodium nitrite", "potassium nitrate", "potassium nitrite", "celery powder", "celery juice extract"]
+    }
+  }
+}

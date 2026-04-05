@@ -1,0 +1,20 @@
+backend/scanner.db
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Env
+.env
+
+# Database
+*.db
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
