@@ -47,76 +47,79 @@ export default function Compare() {
       </div>
 
       {(item1 || item2) && (
-        <div style={{display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) 2fr 2fr', gap: '1rem', background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #E5E7EB'}}>
-          
-          <div style={{fontWeight: 600, color: 'var(--text-muted)', paddingTop: '1rem'}}>
-             <div>Score</div>
-             <div style={{marginTop: '3.5rem'}}>Allergens</div>
-             <div style={{marginTop: '3.5rem'}}>Diet Conflicts</div>
-             <div style={{marginTop: '3.5rem'}}>Health Flags</div>
-             <div style={{marginTop: '3.5rem'}}>Key Nutrition</div>
-          </div>
-          
-          {/* Column 1 */}
-          <div className="card" style={{background: '#F9FAFB', border: 'none', boxShadow: 'none'}}>
-            {item1 ? (
-              <>
-                <h3 className="mb-2">{item1.product_name}</h3>
-                <div className="score-ring" style={{width: '60px', height: '60px', fontSize: '1.5rem', color: item1.score > 70 ? 'var(--success)' : item1.score > 40 ? 'var(--warning)' : 'var(--danger)'}}>
-                  {item1.score}
-                </div>
-                
-                <div style={{marginTop: '1.5rem', minHeight: '60px'}}>
-                  {item1.data.allergens_found.length === 0 ? <span className="text-muted text-sm">None</span> : item1.data.allergens_found.map(a => <div key={a.label} className="pill pill-danger mb-1 text-sm">{a.label}</div>)}
-                </div>
-
-                <div style={{marginTop: '1.5rem', minHeight: '60px'}}>
-                  {item1.data.diet_conflicts?.length === 0 ? <span className="text-muted text-sm">None</span> : item1.data.diet_conflicts?.map(d => <div key={d.label} className="pill pill-warning mb-1 text-sm">{d.label}</div>)}
-                </div>
-
-                <div style={{marginTop: '1.5rem', minHeight: '60px'}}>
-                  {item1.data.health_concerns?.length === 0 ? <span className="text-muted text-sm">None</span> : item1.data.health_concerns?.map(h => <div key={h.label} className="pill pill-warning mb-1 text-sm">{h.label}</div>)}
-                </div>
-
-                <div style={{marginTop: '1.5rem', fontSize: '0.875rem', lineHeight: '1.6'}}>
-                   {item1.data.nutrition_facts && Object.keys(item1.data.nutrition_facts).map(k => (
-                     <div key={k}><strong>{k.replace('_', ' ')}:</strong> {item1.data.nutrition_facts[k]}</div>
-                   ))}
-                </div>
-              </>
-            ) : <div className="text-muted" style={{textAlign:'center', marginTop:'2rem'}}>No product selected</div>}
-          </div>
-          
-          {/* Column 2 */}
-          <div className="card" style={{background: '#F9FAFB', border: 'none', boxShadow: 'none'}}>
-            {item2 ? (
-              <>
-                <h3 className="mb-2">{item2.product_name}</h3>
-                <div className="score-ring" style={{width: '60px', height: '60px', fontSize: '1.5rem', color: item2.score > 70 ? 'var(--success)' : item2.score > 40 ? 'var(--warning)' : 'var(--danger)'}}>
-                  {item2.score}
-                </div>
-                
-                <div style={{marginTop: '1.5rem', minHeight: '60px'}}>
-                  {item2.data.allergens_found.length === 0 ? <span className="text-muted text-sm">None</span> : item2.data.allergens_found.map(a => <div key={a.label} className="pill pill-danger mb-1 text-sm">{a.label}</div>)}
-                </div>
-
-                <div style={{marginTop: '1.5rem', minHeight: '60px'}}>
-                  {item2.data.diet_conflicts?.length === 0 ? <span className="text-muted text-sm">None</span> : item2.data.diet_conflicts?.map(d => <div key={d.label} className="pill pill-warning mb-1 text-sm">{d.label}</div>)}
-                </div>
-
-                <div style={{marginTop: '1.5rem', minHeight: '60px'}}>
-                  {item2.data.health_concerns?.length === 0 ? <span className="text-muted text-sm">None</span> : item2.data.health_concerns?.map(h => <div key={h.label} className="pill pill-warning mb-1 text-sm">{h.label}</div>)}
-                </div>
-
-                <div style={{marginTop: '1.5rem', fontSize: '0.875rem', lineHeight: '1.6'}}>
-                   {item2.data.nutrition_facts && Object.keys(item2.data.nutrition_facts).map(k => (
-                     <div key={k}><strong>{k.replace('_', ' ')}:</strong> {item2.data.nutrition_facts[k]}</div>
-                   ))}
-                </div>
-              </>
-            ) : <div className="text-muted" style={{textAlign:'center', marginTop:'2rem'}}>No product selected</div>}
+        <div className="compare-grid">
+          {/* Header Row */}
+          <div className="compare-row header">
+            <div className="compare-row-label"></div>
+            <div className="compare-val">
+              <div className="compare-product-name">{item1?.product_name || "---"}</div>
+            </div>
+            <div className="compare-val">
+              <div className="compare-product-name">{item2?.product_name || "---"}</div>
+            </div>
           </div>
 
+          <div className="compare-row">
+            <div className="compare-row-label">Health Score</div>
+            <div className="compare-val">
+               {item1 && (
+                 <div className="score-ring" style={{width: '60px', height: '60px', fontSize: '1.5rem', margin: '0', color: item1.score > 70 ? 'var(--success)' : item1.score > 40 ? 'var(--warning)' : 'var(--danger)'}}>
+                   {item1.score}
+                 </div>
+               )}
+            </div>
+            <div className="compare-val">
+               {item2 && (
+                 <div className="score-ring" style={{width: '60px', height: '60px', fontSize: '1.5rem', margin: '0', color: item2.score > 70 ? 'var(--success)' : item2.score > 40 ? 'var(--warning)' : 'var(--danger)'}}>
+                   {item2.score}
+                 </div>
+               )}
+            </div>
+          </div>
+
+          <div className="compare-row">
+            <div className="compare-row-label">Allergens Flags</div>
+            <div className="compare-val">
+               {item1?.data.allergens_found.length === 0 ? <span className="text-muted">None Found</span> : item1?.data.allergens_found.map(a => <div key={a.label} className="pill pill-danger mb-1 text-sm">{a.label}</div>)}
+            </div>
+            <div className="compare-val">
+               {item2?.data.allergens_found.length === 0 ? <span className="text-muted">None Found</span> : item2?.data.allergens_found.map(a => <div key={a.label} className="pill pill-danger mb-1 text-sm">{a.label}</div>)}
+            </div>
+          </div>
+
+          <div className="compare-row">
+            <div className="compare-row-label">Diet Conflicts</div>
+            <div className="compare-val">
+               {item1?.data.diet_conflicts?.length === 0 ? <span className="text-muted">No Conflicts</span> : item1?.data.diet_conflicts?.map(d => <div key={d.label} className="pill pill-warning mb-1 text-sm">{d.label}</div>)}
+            </div>
+            <div className="compare-val">
+               {item2?.data.diet_conflicts?.length === 0 ? <span className="text-muted">No Conflicts</span> : item2?.data.diet_conflicts?.map(d => <div key={d.label} className="pill pill-warning mb-1 text-sm">{d.label}</div>)}
+            </div>
+          </div>
+
+          <div className="compare-row">
+            <div className="compare-row-label">Health Flags</div>
+            <div className="compare-val">
+               {item1?.data.health_concerns?.length === 0 ? <span className="text-muted">No Concerns</span> : item1?.data.health_concerns?.map(h => <div key={h.label} className="pill pill-warning mb-1 text-sm">{h.label}</div>)}
+            </div>
+            <div className="compare-val">
+               {item2?.data.health_concerns?.length === 0 ? <span className="text-muted">No Concerns</span> : item2?.data.health_concerns?.map(h => <div key={h.label} className="pill pill-warning mb-1 text-sm">{h.label}</div>)}
+            </div>
+          </div>
+
+          <div className="compare-row" style={{alignItems: 'flex-start'}}>
+            <div className="compare-row-label" style={{marginTop: '0.2rem'}}>Nutrition</div>
+            <div className="compare-val">
+               {item1?.data.nutrition_facts && Object.keys(item1.data.nutrition_facts).map(k => (
+                 <div key={k} className="text-sm mb-1"><strong>{k.replace('_', ' ')}:</strong> {item1.data.nutrition_facts[k]}</div>
+               ))}
+            </div>
+            <div className="compare-val">
+               {item2?.data.nutrition_facts && Object.keys(item2.data.nutrition_facts).map(k => (
+                 <div key={k} className="text-sm mb-1"><strong>{k.replace('_', ' ')}:</strong> {item2.data.nutrition_facts[k]}</div>
+               ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,7 +1,11 @@
 import json
 import re
+import os
 
-with open("allergens.json", "r") as f:
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(BASE_DIR, "allergens.json")
+
+with open(file_path, "r") as f:
     ALLERGEN_DB = json.load(f)
 
 def parse_ingredients(text: str) -> list[str]:

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useNavigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -25,11 +25,11 @@ function ProtectedLayout({ children }) {
           <h1>PureScan</h1>
         </div>
         <div className="nav-links">
-          <Link to="/dashboard">Dashboard</Link>
-          <Link to="/scan">Scan</Link>
-          <Link to="/compare">Compare</Link>
-          <Link to="/profile">Profile</Link>
-          <button onClick={handleLogout} className="btn-secondary" style={{padding: '0.5rem 1rem'}}>Logout</button>
+          <NavLink to="/dashboard">Dashboard</NavLink>
+          <NavLink to="/scan">Scan</NavLink>
+          <NavLink to="/compare">Compare</NavLink>
+          <NavLink to="/profile">Profile</NavLink>
+          <button onClick={handleLogout} className="btn-secondary" style={{padding: '0.4rem 0.8rem', marginLeft: '0.5rem'}}>Logout</button>
         </div>
       </nav>
       <main className="container">{children}</main>
