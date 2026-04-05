@@ -10,3 +10,4 @@ pytesseract
 sqlalchemy
 pydantic
 python-dotenv
+httpx

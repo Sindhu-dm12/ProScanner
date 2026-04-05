@@ -65,13 +65,32 @@ def _normalize_diet_key(ud: str) -> str:
 
 
 def parse_ingredients(text: str) -> list[str]:
-    text = text.replace('\n', ' ')
-    match = re.search(r'ingredients:?\s*(.*)', text, re.IGNORECASE)
+    """
+    Split label text into ingredient tokens.
+
+    Many pastes include marketing copy where the substring \"ingredients\" appears
+    (e.g. \"natural ingredients\" at the end) with nothing after it — the old regex
+    then captured an empty tail and dropped the whole list. We only trust an
+    \"Ingredients:\" section when it actually yields tokens; otherwise we parse the
+    full text (comma / period / semicolon separated).
+    """
+    raw = (text or "").strip()
+    if not raw:
+        return []
+
+    def tokens_from(blob: str) -> list[str]:
+        blob = blob.replace("\n", " ")
+        items = [x.strip().lower() for x in re.split(r"[,.\n;]", blob)]
+        return [x for x in items if len(x) > 2]
+
+    normalized = raw.replace("\n", " ")
+    match = re.search(r"\bingredients:?\s*(.*)", normalized, re.IGNORECASE)
     if match:
-        text = match.group(1)
-        
-    items = [x.strip().lower() for x in re.split(r'[,.\n;]', text)]
-    return [x for x in items if len(x) > 2]
+        tail = (match.group(1) or "").strip()
+        from_section = tokens_from(tail)
+        if from_section:
+            return from_section
+    return tokens_from(normalized)
 
 def analyze_ingredients(ingredients: list[str], user_allergens: list[str], user_diets: list[str], user_flags: list[str], custom_allergens: list) -> dict:
     allergens_found = []
@@ -85,7 +104,7 @@ def analyze_ingredients(ingredients: list[str], user_allergens: list[str], user_
             "health_concerns": [],
             "diet_conflicts": [],
             "ingredients": [],
-            "error": "No ingredients detected. Please try a clearer photo.",
+            "error": "No ingredients detected. Paste a comma-separated list or try a clearer label photo.",
             "extraction_accuracy": 0
         }
 

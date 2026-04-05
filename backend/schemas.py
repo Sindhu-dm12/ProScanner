@@ -31,3 +31,8 @@ class MVPScanText(BaseModel):
     text: str
     product_name: str = "Scanned Product"
     profile: MVPProfile = Field(default_factory=MVPProfile)
+
+
+class MealPlanRequest(BaseModel):
+    profile: MVPProfile = Field(default_factory=MVPProfile)
+    notes: str = ""

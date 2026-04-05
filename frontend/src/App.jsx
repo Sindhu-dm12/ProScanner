@@ -8,13 +8,12 @@ import {
   Outlet,
   Link,
 } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ScanLine } from 'lucide-react';
 import Scan from './pages/Scan';
 import ProfileSetup from './pages/ProfileSetup';
 import Dashboard from './pages/Dashboard';
 import HistoryPage from './pages/HistoryPage';
 import MealPlanner from './pages/MealPlanner';
-import Community from './pages/Community';
 
 export const PROFILE_KEY = 'healthProfile';
 
@@ -61,6 +60,15 @@ function TopNav() {
             Dashboard
           </NavLink>
           <NavLink
+            to="/scan"
+            className={({ isActive }) => `nav-link-fs ${isActive ? 'active' : ''}`}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <ScanLine className="h-4 w-4 opacity-80" aria-hidden />
+              Scan
+            </span>
+          </NavLink>
+          <NavLink
             to="/history"
             className={({ isActive }) => `nav-link-fs ${isActive ? 'active' : ''}`}
           >
@@ -71,12 +79,6 @@ function TopNav() {
             className={({ isActive }) => `nav-link-fs ${isActive ? 'active' : ''}`}
           >
             Meal planner
-          </NavLink>
-          <NavLink
-            to="/community"
-            className={({ isActive }) => `nav-link-fs ${isActive ? 'active' : ''}`}
-          >
-            Community
           </NavLink>
         </nav>
 
@@ -151,7 +153,6 @@ function App() {
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/profile" element={<ProfileSetup />} />
             <Route path="/meal" element={<MealPlanner />} />
-            <Route path="/community" element={<Community />} />
           </Route>
         </Route>
         <Route

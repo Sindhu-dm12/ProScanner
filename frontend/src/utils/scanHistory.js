@@ -43,6 +43,15 @@ export function aggregateFlaggedAllergens(history) {
     .sort((a, b) => b.count - a.count);
 }
 
+/** Remove every saved scan from this browser (localStorage only). */
+export function clearScanHistory() {
+  try {
+    localStorage.removeItem(HISTORY_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function formatRelativeTime(iso) {
   if (!iso) return '';
   const then = new Date(iso).getTime();

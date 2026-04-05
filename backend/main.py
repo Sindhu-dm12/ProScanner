@@ -1,17 +1,12 @@
+import config_env  # noqa: F401 — loads root + backend .env with override
+
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer
-from dotenv import load_dotenv
-from pathlib import Path
 import os
 import jwt
 import re
-
-_backend_dir = Path(__file__).resolve().parent
-_repo_root = _backend_dir.parent
-load_dotenv(_repo_root / ".env")
-load_dotenv(_backend_dir / ".env", override=True)
 
 import database, models, schemas, auth, analyzer, llm, ocr
 import json
@@ -23,6 +18,16 @@ import io
 from uuid import uuid4
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def _log_gemini_env():
+    k = llm.get_api_key()
+    print(
+        "[FoodSync] GEMINI_API_KEY:",
+        f"loaded ({len(k)} chars)" if k else "MISSING — summaries & meal planner need a key in .env",
+    )
+
 
 # CORS
 app.add_middleware(
@@ -215,6 +220,65 @@ def update_profile(
     return {"message": "Updated"}
 
 
+def _upload_image_mime(content_type: str | None) -> str:
+    if not content_type:
+        return "image/jpeg"
+    m = content_type.split(";")[0].strip().lower()
+    if m == "image/jpg":
+        return "image/jpeg"
+    if m.startswith("image/"):
+        return m
+    return "image/jpeg"
+
+
+def _weak_ocr_signal(ingredients: list, raw_text: str) -> bool:
+    """Heuristic: OCR probably missed the ingredient block."""
+    t = (raw_text or "").strip()
+    if len(ingredients) >= 5 and len(t) >= 90:
+        return False
+    if len(ingredients) == 0:
+        return True
+    if len(t) < 35:
+        return True
+    if len(ingredients) <= 2:
+        return True
+    return False
+
+
+async def image_upload_to_ingredients(
+    contents: bytes,
+    upload_content_type: str | None,
+) -> list:
+    raw_text = ocr.image_to_text(contents)
+    ingredients = analyzer.parse_ingredients(raw_text)
+    if not ingredients and raw_text:
+        ingredients = [
+            x.strip().lower()
+            for x in re.split(r"[,.\n;]", raw_text)
+            if len(x.strip()) > 2
+        ]
+    if (
+        _weak_ocr_signal(ingredients, raw_text)
+        and llm.get_api_key()
+        and llm.label_vision_enabled()
+    ):
+        vision_text, _err = await llm.gemini_read_label_text(
+            contents, _upload_image_mime(upload_content_type)
+        )
+        vision_text = (vision_text or "").strip()
+        if vision_text:
+            vt_ing = analyzer.parse_ingredients(vision_text)
+            if not vt_ing:
+                vt_ing = [
+                    x.strip().lower()
+                    for x in re.split(r"[,.\n;]", vision_text)
+                    if len(x.strip()) > 2
+                ]
+            if len(vt_ing) >= len(ingredients) or _weak_ocr_signal(ingredients, raw_text):
+                ingredients = vt_ing
+    return ingredients
+
+
 # ================= SCAN =================
 
 @app.post("/scan/text")
@@ -237,11 +301,7 @@ async def scan_image(
     current_user: models.User = Depends(get_current_user)
 ):
     contents = await file.read()
-    raw_text = ocr.image_to_text(contents)
-    ingredients = analyzer.parse_ingredients(raw_text)
-    if not ingredients and raw_text:
-        items = [x.strip().lower() for x in re.split(r"[,.\n;]", raw_text) if len(x.strip()) > 2]
-        ingredients = items
+    ingredients = await image_upload_to_ingredients(contents, file.content_type)
 
     return await process_scan(ingredients, product_name, db, current_user)
 
@@ -464,10 +524,17 @@ async def api_scan_image(
         profile = schemas.MVPProfile()
 
     contents = await file.read()
-    raw_text = ocr.image_to_text(contents)
-    ingredients = analyzer.parse_ingredients(raw_text)
-    if not ingredients and raw_text:
-        items = [x.strip().lower() for x in re.split(r"[,.\n;]", raw_text) if len(x.strip()) > 2]
-        ingredients = items
+    ingredients = await image_upload_to_ingredients(contents, file.content_type)
 
     return await mvp_process_scan(ingredients, product_name, profile)
+
+
+@app.post("/api/meal/plan")
+async def api_meal_plan(body: schemas.MealPlanRequest):
+    return await llm.generate_meal_plan(body.profile, body.notes)
+
+
+@app.get("/api/ai/status")
+def api_ai_status():
+    """Whether a Gemini API key is loaded (key value is never returned)."""
+    return {"gemini_configured": bool(llm.get_api_key())}

@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Bell, ScanLine } from 'lucide-react';
+import { ChevronRight, Bell, ScanLine, Trash2 } from 'lucide-react';
 import { loadHealthProfile } from '../App';
 import {
   getScanHistory,
   aggregateFlaggedAllergens,
   formatRelativeTime,
+  clearScanHistory,
 } from '../utils/scanHistory';
 
 function healthLabel(score) {
@@ -13,18 +14,6 @@ function healthLabel(score) {
   if (score >= 60) return 'GOOD';
   if (score >= 40) return 'CAUTION';
   return 'REVIEW';
-}
-
-function nutrientRows(last) {
-  const score = typeof last?.score === 'number' ? last.score : 72;
-  const n = Array.isArray(last?.ingredients) ? last.ingredients.length : 10;
-  const bump = Math.min(15, n);
-  return [
-    { label: 'Calories', sub: 'est.', pct: Math.min(100, Math.round(32 + score * 0.42 + bump)), bar: 'bg-sage' },
-    { label: 'Protein', sub: 'g est.', pct: Math.min(100, Math.round(22 + score * 0.55)), bar: 'bg-tan-bar' },
-    { label: 'Fats', sub: 'g est.', pct: Math.min(100, Math.round(48 + (100 - score) * 0.25)), bar: 'bg-terracotta/90' },
-    { label: 'Carbs', sub: 'g est.', pct: Math.min(100, Math.round(40 + bump * 2)), bar: 'bg-brown-warm/80' },
-  ];
 }
 
 function insightCards(last) {
@@ -72,7 +61,10 @@ function scoreBadgeClass(score) {
 const Dashboard = () => {
   const profile = loadHealthProfile() || {};
   const name = profile.displayName?.trim() || 'there';
-  const history = useMemo(() => getScanHistory(), []);
+  const [historyTick, setHistoryTick] = useState(0);
+  const refreshHistory = useCallback(() => setHistoryTick((t) => t + 1), []);
+
+  const history = useMemo(() => getScanHistory(), [historyTick]);
   const last = history[0];
   const flagged = useMemo(() => aggregateFlaggedAllergens(history), [history]);
   const recent = history.slice(0, 4);
@@ -82,6 +74,23 @@ const Dashboard = () => {
     history.length > 0
       ? Math.round(history.reduce((s, h) => s + (h.score || 0), 0) / history.length)
       : 0;
+
+  const ingList = last?.ingredients || [];
+  const allergenCount = (last?.allergens_found || []).length;
+  const dietCount = (last?.diet_conflicts || []).length;
+  const healthCount = (last?.health_concerns || []).length;
+
+  const handleClearHistory = () => {
+    if (
+      !window.confirm(
+        'Clear all scan history on this device? This cannot be undone.'
+      )
+    ) {
+      return;
+    }
+    clearScanHistory();
+    refreshHistory();
+  };
 
   const today = new Date().toLocaleDateString(undefined, {
     month: 'short',
@@ -130,24 +139,93 @@ const Dashboard = () => {
           {last && (
             <p className="mt-1 text-sm text-muted">{formatRelativeTime(last.at)}</p>
           )}
-          {!last && <p className="mt-3 text-sm text-muted">Scan a label to see details here.</p>}
+          {!last && (
+            <p className="mt-3 text-sm text-muted">Scan a label to see a snapshot here.</p>
+          )}
           {last && (
-            <ul className="mt-6 space-y-5">
-              {nutrientRows(last).map((row) => (
-                <li key={row.label}>
-                  <div className="mb-1.5 flex justify-between text-sm">
-                    <span className="font-semibold text-text">{row.label}</span>
-                    <span className="text-muted">{row.sub}</span>
+            <div className="mt-5 space-y-5">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-glass-border bg-white/45 px-3 py-3 text-center backdrop-blur-sm">
+                  <div className="text-2xl font-extrabold text-text">{ingList.length}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Ingredients
                   </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-white/60">
-                    <div
-                      className={`h-full rounded-full ${row.bar} transition-all duration-700`}
-                      style={{ width: `${row.pct}%` }}
-                    />
+                </div>
+                <div className="rounded-2xl border border-glass-border bg-white/45 px-3 py-3 text-center backdrop-blur-sm">
+                  <div
+                    className={`text-2xl font-extrabold ${allergenCount ? 'text-red-600' : 'text-sage-dark'}`}
+                  >
+                    {allergenCount}
                   </div>
-                </li>
-              ))}
-            </ul>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Alerts
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-glass-border bg-white/45 px-3 py-3 text-center backdrop-blur-sm">
+                  <div
+                    className={`text-2xl font-extrabold ${dietCount ? 'text-terracotta' : 'text-sage-dark'}`}
+                  >
+                    {dietCount}
+                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Diet flags
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-glass-border bg-white/45 px-3 py-3 text-center backdrop-blur-sm">
+                  <div
+                    className={`text-2xl font-extrabold ${healthCount ? 'text-amber-700' : 'text-sage-dark'}`}
+                  >
+                    {healthCount}
+                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Health flags
+                  </div>
+                </div>
+              </div>
+
+              {allergenCount > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-red-700/90">
+                    Allergen matches
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(last.allergens_found || []).map((a, i) => (
+                      <span
+                        key={i}
+                        className="rounded-full bg-red-100/90 px-3 py-1 text-xs font-semibold text-red-800"
+                      >
+                        {a.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {ingList.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted">
+                    Parsed tokens
+                  </p>
+                  <div className="max-h-36 overflow-y-auto rounded-2xl border border-glass-border bg-white/35 p-3 backdrop-blur-sm">
+                    <div className="flex flex-wrap gap-2">
+                      {ingList.slice(0, 24).map((ing, i) => (
+                        <span
+                          key={i}
+                          className="rounded-full bg-white/70 px-2.5 py-1 text-xs font-medium text-text"
+                        >
+                          {ing}
+                        </span>
+                      ))}
+                      {ingList.length > 24 && (
+                        <span className="self-center text-xs text-muted">
+                          +{ingList.length - 24} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </section>
 
@@ -246,11 +324,23 @@ const Dashboard = () => {
         </section>
 
         <section className="glass-card p-5">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-text">Recent scans</h2>
-            <Link to="/history" className="text-sm font-bold text-sage-dark hover:underline">
-              View all
-            </Link>
+            <div className="flex items-center gap-3">
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearHistory}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-red-200/80 bg-red-50/70 px-3 py-1.5 text-xs font-bold text-red-800 transition-colors hover:bg-red-100/90"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Clear history
+                </button>
+              )}
+              <Link to="/history" className="text-sm font-bold text-sage-dark hover:underline">
+                View all
+              </Link>
+            </div>
           </div>
           <ul className="space-y-2">
             {recent.length === 0 ? (
